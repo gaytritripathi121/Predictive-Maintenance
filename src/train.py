@@ -13,7 +13,7 @@ from visualization import Visualizer
 
 
 class Config:
-    DATA_PATH = '../data/'
+    DATA_PATH = 'data/'
     HEALTHY_RATIO = 0.35
     VARIANCE_THRESHOLD = 0.01
 

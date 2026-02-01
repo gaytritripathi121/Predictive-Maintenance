@@ -1,10 +1,20 @@
+# Python
 __pycache__/
 *.pyc
-.DS_Store
+*.pyo
+.Python
 venv/
-*.h5
-*.pkl
-lstm_autoencoder_best.h5
-!models/lstm_autoencoder_best.keras
-!models/scaler.pkl
-!models/threshold.pkl
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
