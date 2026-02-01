@@ -4,3 +4,7 @@ __pycache__/
 venv/
 *.h5
 *.pkl
+lstm_autoencoder_best.h5
+!models/lstm_autoencoder_best.keras
+!models/scaler.pkl
+!models/threshold.pkl
