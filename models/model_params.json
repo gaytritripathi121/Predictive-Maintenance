@@ -1,0 +1,5 @@
+{
+    "sequence_length": 30,
+    "n_features": 11,
+    "latent_dim": 16
+}

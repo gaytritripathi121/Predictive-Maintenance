@@ -97,12 +97,13 @@ class LSTMAutoencoder:
 
         fig, ax = plt.subplots(1, 1, figsize=(10, 6))
 
-        ax.plot(self.history.history['loss'], linewidth=2)
-        ax.plot(self.history.history['val_loss'], linewidth=2)
+        ax.plot(self.history.history['loss'], linewidth=2, label='Training Loss')
+        ax.plot(self.history.history['val_loss'], linewidth=2, label='Validation Loss')
 
         ax.set_xlabel('Epoch')
         ax.set_ylabel('Loss')
         ax.set_title('Training History')
+        ax.legend()
         ax.grid(alpha=0.3)
 
         plt.tight_layout()
@@ -118,11 +119,40 @@ class LSTMAutoencoder:
         )
 
     def save_model(self, filepath='../models/lstm_autoencoder.keras'):
+        """Save model in .keras format"""
         if not filepath.endswith('.keras'):
             filepath = filepath.replace('.h5', '.keras')
 
         self.model.save(filepath)
+        print(f"✓ Model saved to {filepath}")
+
+    def save_weights(self, filepath='../models/lstm_autoencoder.weights.h5'):
+        """Save only model weights (more compatible)"""
+        self.model.save_weights(filepath)
+        print(f"✓ Weights saved to {filepath}")
+
+    def save_config(self, filepath='../models/model_config.json'):
+        """Save model configuration"""
+        import json
+        config = {
+            'sequence_length': self.sequence_length,
+            'n_features': self.n_features,
+            'latent_dim': self.latent_dim,
+            'model_config': self.model.get_config()
+        }
+        with open(filepath, 'w') as f:
+            json.dump(config, f, indent=4)
+        print(f"✓ Config saved to {filepath}")
 
     def load_model(self, filepath='../models/lstm_autoencoder.keras'):
-        self.model = keras.models.load_model(filepath)
+        """Load complete model"""
+        self.model = keras.models.load_model(filepath, compile=False)
+        self.model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+        return self.model
+
+    def load_weights(self, filepath='../models/lstm_autoencoder.weights.h5'):
+        """Load only weights (requires model to be built first)"""
+        if self.model is None:
+            raise ValueError("Model must be built before loading weights. Call build_model() first.")
+        self.model.load_weights(filepath)
         return self.model

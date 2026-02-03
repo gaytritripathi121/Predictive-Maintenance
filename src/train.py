@@ -28,8 +28,8 @@ class Config:
     THRESHOLD_METHOD = 'mean_std'
     THRESHOLD_SIGMA = 3
 
-    MODEL_DIR = '../models/'
-    RESULTS_DIR = '../results/'
+    MODEL_DIR = 'models/'
+    RESULTS_DIR = 'results/'
 
 
 def ensure_directories():
@@ -40,6 +40,10 @@ def ensure_directories():
 def main():
     ensure_directories()
 
+    print("="*70)
+    print("STEP 1: Loading and Preprocessing Data")
+    print("="*70)
+    
     loader = CMAPSSDataLoader(data_path=Config.DATA_PATH)
 
     train_df, test_df = loader.load_data()
@@ -57,9 +61,16 @@ def main():
         fit_on_healthy_only=True
     )
 
-    with open(os.path.join(Config.MODEL_DIR, 'scaler.pkl'), 'wb') as f:
+    # Save scaler
+    scaler_path = os.path.join(Config.MODEL_DIR, 'scaler.pkl')
+    with open(scaler_path, 'wb') as f:
         pickle.dump(scaler, f)
+    print(f"✓ Scaler saved to {scaler_path}")
 
+    print("\n" + "="*70)
+    print("STEP 2: Preparing Training Sequences")
+    print("="*70)
+    
     data = prepare_training_data(
         train_df,
         test_df,
@@ -68,6 +79,10 @@ def main():
         val_ratio=Config.VAL_RATIO
     )
 
+    print("\n" + "="*70)
+    print("STEP 3: Building and Training Model")
+    print("="*70)
+    
     autoencoder = LSTMAutoencoder(
         sequence_length=Config.SEQUENCE_LENGTH,
         n_features=data['n_features'],
@@ -75,6 +90,8 @@ def main():
     )
 
     autoencoder.build_model()
+    autoencoder.summary()
+    
     autoencoder.train(
         data['X_train'],
         data['X_val'],
@@ -87,9 +104,40 @@ def main():
         save_path=os.path.join(Config.RESULTS_DIR, 'training_history.png')
     )
 
+    print("\n" + "="*70)
+    print("STEP 4: Saving Model (Multiple Formats for Compatibility)")
+    print("="*70)
+    
+    # Save in multiple formats for maximum compatibility
+    
+    # 1. Save complete model (.keras format - primary)
     model_path = os.path.join(Config.MODEL_DIR, 'lstm_autoencoder.keras')
     autoencoder.save_model(model_path)
+    
+    # 2. Save weights only (.h5 format - fallback)
+    weights_path = os.path.join(Config.MODEL_DIR, 'lstm_autoencoder.weights.h5')
+    autoencoder.save_weights(weights_path)
+    
+    # 3. Save model configuration (for rebuilding)
+    config_path = os.path.join(Config.MODEL_DIR, 'model_config.json')
+    autoencoder.save_config(config_path)
+    
+    # 4. Save model parameters for easy rebuilding
+    import json
+    params_path = os.path.join(Config.MODEL_DIR, 'model_params.json')
+    model_params = {
+        'sequence_length': Config.SEQUENCE_LENGTH,
+        'n_features': data['n_features'],
+        'latent_dim': Config.LATENT_DIM
+    }
+    with open(params_path, 'w') as f:
+        json.dump(model_params, f, indent=4)
+    print(f"✓ Model parameters saved to {params_path}")
 
+    print("\n" + "="*70)
+    print("STEP 5: Computing Anomaly Threshold")
+    print("="*70)
+    
     detector = AnomalyDetector(autoencoder)
 
     threshold = detector.compute_threshold(
@@ -98,9 +146,16 @@ def main():
         sigma=Config.THRESHOLD_SIGMA
     )
 
-    with open(os.path.join(Config.MODEL_DIR, 'threshold.pkl'), 'wb') as f:
+    threshold_path = os.path.join(Config.MODEL_DIR, 'threshold.pkl')
+    with open(threshold_path, 'wb') as f:
         pickle.dump(threshold, f)
+    print(f"✓ Threshold saved to {threshold_path}")
+    print(f"  Threshold value: {threshold:.6f}")
 
+    print("\n" + "="*70)
+    print("STEP 6: Evaluating Model Performance")
+    print("="*70)
+    
     metrics = detector.evaluate(
         data['X_train_eval'],
         data['y_train_eval']
@@ -126,6 +181,10 @@ def main():
         save_path=os.path.join(Config.RESULTS_DIR, 'error_distribution.png')
     )
 
+    print("\n" + "="*70)
+    print("STEP 7: Generating Visualizations")
+    print("="*70)
+    
     visualizer = Visualizer(autoencoder, detector)
 
     visualizer.plot_sensor_trends(
@@ -173,11 +232,28 @@ def main():
         )
     )
 
+    print("\n" + "="*70)
+    print("✓ TRAINING COMPLETE!")
+    print("="*70)
+    print(f"\nModel files saved in: {Config.MODEL_DIR}")
+    print(f"Results saved in: {Config.RESULTS_DIR}")
+    print("\nSaved files:")
+    print(f"  • lstm_autoencoder.keras (full model)")
+    print(f"  • lstm_autoencoder.weights.h5 (weights only)")
+    print(f"  • model_config.json (architecture)")
+    print(f"  • model_params.json (hyperparameters)")
+    print(f"  • scaler.pkl")
+    print(f"  • threshold.pkl")
+    print("\n" + "="*70)
+
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as e:
         import traceback
+        print("\n" + "="*70)
+        print("ERROR OCCURRED!")
+        print("="*70)
         traceback.print_exc()
         sys.exit(1)
