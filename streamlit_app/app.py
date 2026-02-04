@@ -1,6 +1,6 @@
 """
 Streamlit Dashboard for Predictive Maintenance - PRODUCTION VERSION
-FINAL STABLE VERSION with comprehensive NumPy compatibility fixes
+Updated with robust model loading for Keras compatibility
 """
 
 import streamlit as st
@@ -12,43 +12,6 @@ import os
 import sys
 import plotly.graph_objects as go
 from tensorflow import keras
-
-# ============================================================================
-# COMPREHENSIVE NUMPY COMPATIBILITY FIX - APPLY BEFORE ANY IMPORTS
-# ============================================================================
-
-def fix_numpy_compatibility():
-    """
-    Comprehensive fix for NumPy version compatibility issues.
-    Handles both numpy._core and numpy.core._multiarray_umath errors.
-    Must be called BEFORE loading any pickled objects.
-    """
-    import numpy as np
-    import sys
-    
-    # Fix 1: numpy._core compatibility
-    if not hasattr(np, '_core'):
-        np._core = np.core
-    
-    # Fix 2: Create missing submodules
-    if not hasattr(np.core, '_multiarray_umath'):
-        try:
-            # Try to import it properly
-            from numpy.core import _multiarray_umath
-            np.core._multiarray_umath = _multiarray_umath
-        except ImportError:
-            # If not available, create a mock
-            class MockMultiarrayUmath:
-                pass
-            np.core._multiarray_umath = MockMultiarrayUmath()
-    
-    # Fix 3: Update sys.modules to recognize the patched modules
-    sys.modules['numpy._core'] = np.core
-    if hasattr(np.core, '_multiarray_umath'):
-        sys.modules['numpy.core._multiarray_umath'] = np.core._multiarray_umath
-
-# Apply fix immediately
-fix_numpy_compatibility()
 
 # ============================================================================
 # PATH CONFIGURATION
@@ -97,112 +60,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================================
-# ROBUST PICKLE LOADING WITH MULTIPLE FALLBACK STRATEGIES
-# ============================================================================
-
-def safe_pickle_load(filepath, max_retries=3):
-    """
-    Safely load pickle files with comprehensive error handling.
-    Uses multiple fallback strategies for maximum compatibility.
-    
-    Args:
-        filepath: Path to pickle file
-        max_retries: Number of retry attempts with different strategies
-    
-    Returns:
-        Unpickled object
-    """
-    import pickle
-    import numpy as np
-    
-    # Ensure NumPy compatibility is applied
-    fix_numpy_compatibility()
-    
-    for attempt in range(max_retries):
-        try:
-            # Strategy 1: Standard pickle load
-            with open(filepath, 'rb') as f:
-                obj = pickle.load(f)
-            return obj
-            
-        except ModuleNotFoundError as e:
-            error_msg = str(e)
-            
-            # Strategy 2: Handle numpy._core errors
-            if 'numpy._core' in error_msg or 'numpy.core' in error_msg:
-                if attempt == 0:
-                    st.sidebar.warning(f"⚠️ NumPy compatibility issue detected (attempt {attempt + 1}/{max_retries})")
-                
-                # Reapply fix
-                fix_numpy_compatibility()
-                
-                # Try using encoding parameter
-                try:
-                    with open(filepath, 'rb') as f:
-                        obj = pickle.load(f, encoding='latin1')
-                    st.sidebar.success("✓ Loaded with latin1 encoding")
-                    return obj
-                except:
-                    pass
-                
-                # Try using different protocol
-                try:
-                    import pickle5
-                    with open(filepath, 'rb') as f:
-                        obj = pickle5.load(f)
-                    st.sidebar.success("✓ Loaded with pickle5")
-                    return obj
-                except:
-                    pass
-                
-                if attempt < max_retries - 1:
-                    continue
-                else:
-                    raise Exception(
-                        f"Failed to load {filepath} after {max_retries} attempts. "
-                        f"This file was likely created with a different NumPy version. "
-                        f"Please regenerate it by running train.py"
-                    )
-            else:
-                raise
-                
-        except Exception as e:
-            if attempt < max_retries - 1:
-                st.sidebar.warning(f"⚠️ Retry {attempt + 1}/{max_retries}: {str(e)[:50]}...")
-                continue
-            else:
-                raise Exception(f"Failed to load {filepath}: {str(e)}")
-    
-    raise Exception(f"Failed to load {filepath} after {max_retries} attempts")
-
-
-def safe_joblib_load(filepath):
-    """
-    Safely load joblib files with NumPy compatibility.
-    """
-    import joblib
-    
-    # Ensure NumPy compatibility
-    fix_numpy_compatibility()
-    
-    try:
-        return joblib.load(filepath)
-    except Exception as e:
-        st.error(f"Error loading joblib file: {str(e)}")
-        st.info("Please regenerate the file by running train.py")
-        raise
-
-
-# ============================================================================
-# ROBUST MODEL LOADING WITH MULTIPLE FALLBACK METHODS
+# ROBUST MODEL LOADING
 # ============================================================================
 
 @st.cache_resource
 def load_model_artifacts():
-    """
-    Load model with multiple fallback methods for maximum compatibility.
-    Handles both Keras model loading and NumPy pickle compatibility.
-    """
+    """Load model with multiple fallback methods for Keras compatibility"""
     
     def try_load_saved_model():
         """Try loading saved model directly"""
@@ -257,7 +120,6 @@ def load_model_artifacts():
     try:
         st.sidebar.subheader("🔄 Loading Model...")
         
-        # Step 1: Load model
         model = try_load_saved_model()
         if model is None:
             st.sidebar.info("Trying alternative method...")
@@ -266,96 +128,39 @@ def load_model_artifacts():
         if model is None:
             st.error(f"❌ Could not load model from: {MODEL_PATH}")
             st.info("**Required files in models/ directory:**")
-            st.code("• lstm_autoencoder.keras\n• lstm_autoencoder.weights.h5\n• model_params.json\n• scaler.pkl (or scaler.joblib)\n• threshold.pkl")
+            st.code("• lstm_autoencoder.keras\n• lstm_autoencoder.weights.h5\n• model_params.json\n• scaler.pkl\n• threshold.pkl")
             st.info("💡 Run `train.py` to generate these files")
-            st.stop()
+            return None, None, None
         
         model.compile(optimizer='adam', loss='mse', metrics=['mae'])
         
-        # Step 2: Load scaler with comprehensive fallback
-        scaler = None
-        scaler_paths = [
-            ('scaler.joblib', safe_joblib_load),
-            ('scaler.pkl', safe_pickle_load)
-        ]
-        
-        for filename, load_func in scaler_paths:
-            scaler_path = os.path.join(MODEL_PATH, filename)
-            if os.path.exists(scaler_path):
-                try:
-                    st.sidebar.info(f"Loading {filename}...")
-                    scaler = load_func(scaler_path)
-                    st.sidebar.success(f"✓ Scaler loaded from {filename}")
-                    break
-                except Exception as e:
-                    st.sidebar.warning(f"⚠️ Failed to load {filename}: {str(e)[:40]}...")
-                    continue
-        
-        if scaler is None:
-            st.error("❌ Could not load scaler from any available format")
-            st.info("**Tried:**")
-            st.code("• scaler.joblib\n• scaler.pkl")
-            st.info("💡 Run `train.py` to regenerate scaler")
-            
-            with st.expander("📋 Troubleshooting Steps"):
-                st.markdown("""
-                **This error occurs due to NumPy version mismatch. To fix:**
-                
-                1. **Quick Fix (Recommended)**: Regenerate the scaler
-                   ```bash
-                   python train.py
-                   ```
-                
-                2. **Alternative**: Upgrade NumPy to match training environment
-                   ```bash
-                   pip install --upgrade numpy
-                   ```
-                
-                3. **Check NumPy version**:
-                   - Current: `{np.__version__}`
-                   - Required: Check your training environment
-                
-                4. **If still failing**: Delete old pickle files and retrain
-                   ```bash
-                   rm models/scaler.pkl models/threshold.pkl
-                   python train.py
-                   ```
-                """)
-            st.stop()
-        
-        # Step 3: Load threshold
+        scaler_path = os.path.join(MODEL_PATH, 'scaler.pkl')
         threshold_path = os.path.join(MODEL_PATH, 'threshold.pkl')
         
-        if not os.path.exists(threshold_path):
-            st.error("❌ Threshold file not found")
-            st.info(f"Expected: {threshold_path}")
-            st.info("💡 Run `train.py` to generate threshold.pkl")
-            st.stop()
+        if not os.path.exists(scaler_path) or not os.path.exists(threshold_path):
+            st.error("❌ Scaler or threshold not found")
+            return None, None, None
         
-        try:
-            threshold = safe_pickle_load(threshold_path)
-            st.sidebar.success(f"✓ Threshold: {threshold:.6f}")
-        except Exception as e:
-            st.error(f"❌ Error loading threshold: {str(e)}")
-            st.info("💡 Run `train.py` to regenerate threshold.pkl")
-            st.stop()
+        with open(scaler_path, 'rb') as f:
+            scaler = pickle.load(f)
+        with open(threshold_path, 'rb') as f:
+            threshold = pickle.load(f)
+        
+        st.sidebar.success("✓ Scaler loaded")
+        st.sidebar.success(f"✓ Threshold: {threshold:.6f}")
         
         with st.sidebar.expander("📊 Model Info"):
             st.text(f"Input: {model.input_shape}")
             st.text(f"Params: {model.count_params():,}")
         
-        st.sidebar.success("✅ All artifacts loaded successfully")
         return model, scaler, threshold
         
     except Exception as e:
-        st.error(f"❌ Critical Error: {str(e)}")
-        with st.expander("Full Error Details"):
+        st.error(f"❌ Error: {str(e)}")
+        with st.expander("Full Error"):
             import traceback
             st.code(traceback.format_exc())
-        
-        st.info("**Recovery Steps:**")
-        st.code("1. Delete models/*.pkl files\n2. Run: python train.py\n3. Restart dashboard")
-        st.stop()
+        return None, None, None
 
 
 @st.cache_data
@@ -369,7 +174,7 @@ def load_data():
             test_file = os.path.join(data_path, 'test_FD001.txt')
             
             if os.path.exists(train_file) and os.path.exists(test_file):
-                st.sidebar.success(f"✓ Data loaded from: {data_path}")
+                st.success(f"✓ Data loaded from: {data_path}")
                 loader = CMAPSSDataLoader(data_path=data_path)
                 train_df, test_df = loader.load_data()
                 feature_cols, _ = loader.identify_informative_features()
@@ -377,7 +182,6 @@ def load_data():
                 return train_df, test_df, feature_cols
         
         st.error("❌ Dataset files not found!")
-        st.info("Please ensure data files are in the 'data/' directory")
         return None, None, None
         
     except Exception as e:
@@ -489,10 +293,12 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.subheader("🔧 System Status")
     
-    with st.spinner("Loading model artifacts..."):
+    with st.spinner("Loading..."):
         model, scaler, threshold = load_model_artifacts()
-    
-    with st.spinner("Loading data..."):
+        if model is None:
+            st.error("⚠️ Cannot load model")
+            st.stop()
+        
         train_df, test_df, feature_cols = load_data()
         if train_df is None:
             st.error("⚠️ Cannot load data")
