@@ -1,6 +1,6 @@
 """
 Streamlit Dashboard for Predictive Maintenance - PRODUCTION VERSION
-Updated with robust model loading for Keras compatibility
+Updated with robust model loading and NumPy compatibility fixes
 """
 
 import streamlit as st
@@ -12,6 +12,23 @@ import os
 import sys
 import plotly.graph_objects as go
 from tensorflow import keras
+
+# ============================================================================
+# NUMPY COMPATIBILITY FIX
+# ============================================================================
+# Fix for "No module named 'numpy._core'" error when loading pickled objects
+def safe_pickle_load(filepath):
+    """Safely loads pickles with version compatibility"""
+    try:
+        with open(filepath, 'rb') as f:
+            return pickle.load(f)
+    except ModuleNotFoundError as e:
+        if 'numpy._core' in str(e):
+            # Apply fix
+            if not hasattr(np, '_core'):
+                np._core = np.core
+            # Retry
+            ...
 
 # ============================================================================
 # PATH CONFIGURATION
@@ -60,12 +77,36 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================================
-# ROBUST MODEL LOADING
+# ROBUST MODEL LOADING WITH NUMPY FIX
 # ============================================================================
+
+def safe_pickle_load(filepath):
+    """Safely load pickle files with NumPy compatibility handling"""
+    try:
+        with open(filepath, 'rb') as f:
+            return pickle.load(f)
+    except ModuleNotFoundError as e:
+        if 'numpy._core' in str(e) or 'numpy.core' in str(e):
+            # NumPy version mismatch - try compatibility mode
+            st.sidebar.warning("⚠️ NumPy version mismatch detected, using compatibility mode...")
+            
+            # Temporary patch for NumPy compatibility
+            import sys
+            import numpy
+            
+            # Create numpy._core module if it doesn't exist
+            if not hasattr(numpy, '_core'):
+                numpy._core = numpy.core
+            
+            # Try loading again
+            with open(filepath, 'rb') as f:
+                return pickle.load(f)
+        else:
+            raise
 
 @st.cache_resource
 def load_model_artifacts():
-    """Load model with multiple fallback methods for Keras compatibility"""
+    """Load model with multiple fallback methods for Keras and NumPy compatibility"""
     
     def try_load_saved_model():
         """Try loading saved model directly"""
@@ -134,20 +175,43 @@ def load_model_artifacts():
         
         model.compile(optimizer='adam', loss='mse', metrics=['mae'])
         
+        # Load scaler and threshold with NumPy compatibility
         scaler_path = os.path.join(MODEL_PATH, 'scaler.pkl')
         threshold_path = os.path.join(MODEL_PATH, 'threshold.pkl')
         
-        if not os.path.exists(scaler_path) or not os.path.exists(threshold_path):
-            st.error("❌ Scaler or threshold not found")
+        if not os.path.exists(scaler_path):
+            st.error("❌ Scaler file not found")
+            st.info(f"Expected: {scaler_path}")
+            st.info("💡 Run `train.py` to generate scaler.pkl")
+            return None, None, None
+            
+        if not os.path.exists(threshold_path):
+            st.error("❌ Threshold file not found")
+            st.info(f"Expected: {threshold_path}")
+            st.info("💡 Run `train.py` to generate threshold.pkl")
             return None, None, None
         
-        with open(scaler_path, 'rb') as f:
-            scaler = pickle.load(f)
-        with open(threshold_path, 'rb') as f:
-            threshold = pickle.load(f)
+        # Use safe pickle loading for NumPy compatibility
+        try:
+            scaler = safe_pickle_load(scaler_path)
+            st.sidebar.success("✓ Scaler loaded")
+        except Exception as e:
+            st.error(f"❌ Error loading scaler: {str(e)}")
+            st.info("**Troubleshooting:**")
+            st.info("1. NumPy version mismatch detected")
+            st.info("2. Try upgrading NumPy: `pip install --upgrade numpy`")
+            st.info("3. Or re-run `train.py` to regenerate scaler with current NumPy version")
+            with st.expander("Show full error"):
+                import traceback
+                st.code(traceback.format_exc())
+            return None, None, None
         
-        st.sidebar.success("✓ Scaler loaded")
-        st.sidebar.success(f"✓ Threshold: {threshold:.6f}")
+        try:
+            threshold = safe_pickle_load(threshold_path)
+            st.sidebar.success(f"✓ Threshold: {threshold:.6f}")
+        except Exception as e:
+            st.error(f"❌ Error loading threshold: {str(e)}")
+            return None, None, None
         
         with st.sidebar.expander("📊 Model Info"):
             st.text(f"Input: {model.input_shape}")

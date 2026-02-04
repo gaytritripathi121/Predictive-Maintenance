@@ -2,6 +2,7 @@ import os
 import sys
 import pickle
 import warnings
+import joblib
 
 warnings.filterwarnings('ignore')
 
@@ -64,7 +65,7 @@ def main():
     # Save scaler
     scaler_path = os.path.join(Config.MODEL_DIR, 'scaler.pkl')
     with open(scaler_path, 'wb') as f:
-        pickle.dump(scaler, f)
+         joblib.dump(scaler, "scaler.joblib")
     print(f"✓ Scaler saved to {scaler_path}")
 
     print("\n" + "="*70)
