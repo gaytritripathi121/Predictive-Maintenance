@@ -122,13 +122,6 @@ Overall Score = 0.25 × Completeness +
 - **Exploratory Analysis** - Quick dataset health check
 - **ML Pipeline Integration** - Automated quality gates
 
-##  Contributing
-
-Contributions welcome! Please open an issue or submit a pull request.
-
-##  License
-
-MIT License - see [LICENSE](LICENSE) file for details.
 
 ##  Author
 
@@ -142,4 +135,3 @@ Built with Python, Scikit-learn, and Streamlit. Inspired by the need for automat
 
 ---
 
-⭐ **Star this repo if you find it helpful!**
