@@ -200,8 +200,7 @@ The project generates comprehensive visualizations:
 ##  Author
 
 **Your Name**
-- LinkedIn: [your-profile](https://linkedin.com/in/yourprofile)
-- Email: your.email@example.com
+- Email: gaytritripathi121@gmail.com
 
 ---
 
