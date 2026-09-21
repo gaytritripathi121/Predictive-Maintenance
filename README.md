@@ -1,216 +1,300 @@
+# Predictive Maintenance using LSTM Autoencoder
 
-##  Overview
+## Overview
 
-This project implements a **predictive maintenance system** that detects engine degradation before catastrophic failure occurs. Using deep learning and time-series analysis, the model achieves **80% recall** in catching failures early, potentially saving millions in downtime costs.
+This project implements a **predictive maintenance system** for detecting abnormal engine behavior and identifying potential degradation before failure.
 
-**Key Features:**
-- LSTM Autoencoder for temporal pattern recognition
-- Unsupervised anomaly detection
-- 80% recall, 53% precision on test data
-- Interactive Streamlit dashboard
-- Industry-grade code with proper ML practices
+The system uses **time-series sensor data from the NASA CMAPSS dataset** and an **LSTM Autoencoder** to learn patterns from normal operating conditions. Anomalies are identified using reconstruction error.
 
----
+### Key Features
 
-##  Problem Statement
-
-**Challenge:** Turbofan engines fail unexpectedly, causing:
-- $250K+ per failure in downtime
-- Safety risks
-- Customer dissatisfaction
-
-**Solution:** Detect degradation patterns in sensor data 20-40 cycles before failure, enabling proactive maintenance.
+* LSTM Autoencoder for temporal pattern recognition
+* Unsupervised anomaly detection
+* 80.70% recall on the test data
+* 53.24% precision on the test data
+* Interactive Streamlit dashboard
+* Modular ML pipeline with preprocessing, training, evaluation, and visualization
 
 ---
 
-##  Results
+## Problem Statement
 
-| Metric | Value | Meaning |
-|--------|-------|---------|
-| **Recall** | 80.70% | Catches 4 out of 5 failures |
-| **Precision** | 53.24% | ~Half of alarms are real |
-| **F1-Score** | 64.15% | Balanced performance |
-| **Accuracy** | 92.16% | Overall correctness |
+### Challenge
 
-**Business Impact:**
--  $3.5M+ annual savings
--  80% reduction in unexpected failures
--  70% less downtime
+Unexpected turbofan engine failures can result in:
+
+* Significant maintenance and downtime costs
+* Operational disruptions
+* Safety concerns
+* Reduced equipment availability
+
+### Solution
+
+This project analyzes sensor measurements collected over multiple operating cycles to identify patterns associated with abnormal engine behavior.
+
+The system learns the characteristics of **normal engine operation** and flags sequences with unusually high reconstruction error as potential anomalies.
+
+> **Note:** The model's anomaly detection results are based on the NASA CMAPSS dataset and should not be interpreted as a production-ready aircraft maintenance system without further validation.
 
 ---
 
-##  Architecture
+## Results
 
-```
+| Metric        | Value  | Meaning                                                       |
+| ------------- | ------ | ------------------------------------------------------------- |
+| **Recall**    | 80.70% | Detects approximately 81% of the labeled anomalies            |
+| **Precision** | 53.24% | Approximately 53% of detected anomalies were actual anomalies |
+| **F1-Score**  | 64.15% | Balance between precision and recall                          |
+| **Accuracy**  | 92.16% | Overall classification accuracy                               |
+
+### Potential Business Impact
+
+Predictive maintenance can potentially help organizations:
+
+* Reduce unexpected equipment failures
+* Minimize unplanned downtime
+* Improve maintenance planning
+* Extend equipment availability
+* Reduce unnecessary maintenance
+
+The actual financial impact would depend on the deployment environment, maintenance strategy, equipment type, and operational costs.
+
+---
+
+## Architecture
+
+```text
 Input: 30 timesteps × 11 sensors
-   ↓
-Encoder: LSTM(64) → LSTM(32) → Dense(16)
-   ↓
-Latent Space: 16 compressed features
-   ↓
-Decoder: LSTM(32) → LSTM(64) → Dense(11)
-   ↓
-Output: Reconstructed sequence
-   ↓
-Anomaly Detection: Reconstruction Error > Threshold
+              ↓
+       Encoder
+   LSTM(64) → LSTM(32)
+              ↓
+        Dense(16)
+              ↓
+       Latent Space
+       16 features
+              ↓
+        Decoder
+   LSTM(32) → LSTM(64)
+              ↓
+        Dense(11)
+              ↓
+   Reconstructed Sequence
+              ↓
+     Reconstruction Error
+              ↓
+   Error > Threshold
+              ↓
+      Anomaly Detected
 ```
 
-**Why LSTM Autoencoder?**
-- **LSTM**: Captures temporal patterns (sensor drift over time)
-- **Autoencoder**: Unsupervised learning (trains only on healthy data)
-- **Result**: High reconstruction error = Anomaly detected
+### Why LSTM Autoencoder?
+
+**LSTM:** Captures temporal dependencies and changes in sensor behavior over time.
+
+**Autoencoder:** Learns to reconstruct normal operating patterns without requiring failure labels during training.
+
+**Anomaly Detection:** When the model encounters an unusual sequence, its reconstruction error increases. A threshold is then used to identify potential anomalies.
 
 ---
 
-##  Quick Start
+## Quick Start
 
-### 1. Clone & Install
+### 1. Clone the Repository
+
 ```bash
-git clone https://github.com/yourusername/predictive-maintenance.git
-cd predictive-maintenance
+git clone https://github.com/gaytritripathi121/Predictive-Maintenance.git
+cd Predictive-Maintenance
+```
+
+### 2. Install Dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Download Dataset
-Download NASA CMAPSS FD001 from [NASA Prognostics Repository](https://ti.arc.nasa.gov/tech/dash/groups/pcoe/prognostic-data-repository/)
+### 3. Download the Dataset
 
-Place `train_FD001.txt` and `test_FD001.txt` in `data/` folder
+Download the **NASA CMAPSS FD001** dataset from the NASA Prognostics Data Repository.
 
-### 3. Train Model
+Place the required dataset files inside the `data/` folder:
+
+```text
+data/
+├── train_FD001.txt
+└── test_FD001.txt
+```
+
+### 4. Train the Model
+
 ```bash
 cd src
 python train.py
 ```
-Training time: ~20-30 minutes on CPU
 
-### 4. Evaluate
+Training time may vary depending on the hardware and configuration.
+
+### 5. Evaluate the Model
+
 ```bash
 python evaluate.py
 ```
 
-### 5. Launch Dashboard
+### 6. Launch the Dashboard
+
+From the project root:
+
 ```bash
-streamlit run ../streamlit_app/app.py
+streamlit run streamlit_app/app.py
 ```
-Open browser at `http://localhost:8501`
+
+The dashboard will be available at:
+
+```text
+http://localhost:8501
+```
 
 ---
 
-##  Project Structure
+## Project Structure
 
-```
-predictive-maintenance/
-├── data/                   # NASA CMAPSS dataset
-├── src/                    # Source code
+```text
+Predictive-Maintenance/
+├── data/                       # Dataset files
+├── src/                        # Source code
 │   ├── data_preprocessing.py
 │   ├── sequence_generator.py
 │   ├── lstm_autoencoder.py
 │   ├── anomaly_detection.py
 │   ├── visualization.py
-│   ├── train.py           # Main training pipeline
-│   └── evaluate.py        # Evaluation script
-├── models/                 # Saved models & scaler
-├── results/                # Plots & metrics
-├── streamlit_app/          # Interactive dashboard
+│   ├── train.py                # Model training pipeline
+│   └── evaluate.py             # Model evaluation
+├── models/                     # Saved model and preprocessing artifacts
+├── results/                    # Evaluation results and visualizations
+├── streamlit_app/              # Streamlit dashboard
 └── requirements.txt
 ```
 
 ---
 
-##  Key Technical Decisions
+## Key Technical Decisions
 
-### 1. **No Data Leakage**
-- Scaler fitted **only on healthy training data**
-- Simulates real-world deployment (no failure data initially)
+### 1. Preventing Data Leakage
 
-### 2. **Proper Metrics**
-- Used **Precision/Recall/F1** instead of accuracy
-- Handles imbalanced data (90% normal, 10% anomaly)
+The scaler is fitted only on the training data used to represent healthy operating conditions.
 
-### 3. **Anomaly Threshold**
-- Mean + 3σ of validation errors (conservative)
-- Adjustable for precision-recall trade-off
+This helps ensure that information from the evaluation data does not influence preprocessing during training.
 
-### 4. **Sequence Generation**
-- 30-timestep sliding windows
-- Captures temporal dependencies
+### 2. Using Precision, Recall and F1-Score
 
----
+Because anomaly detection can involve imbalanced classes, accuracy alone may not provide a complete picture of model performance.
 
-##  Visualizations
+Therefore, Precision, Recall, and F1-Score are also used for evaluation.
 
-The project generates comprehensive visualizations:
+### 3. Anomaly Threshold
 
-| Visualization | Description |
-|---------------|-------------|
-| Sensor Trends | Sensor values over engine lifecycle |
-| Reconstruction Error | Error timeline with anomaly detection |
-| Confusion Matrix | Classification performance |
-| Error Distribution | Normal vs anomaly error distributions |
-| Degradation Detection | Early warning analysis |
+The anomaly threshold is calculated using the reconstruction errors from the validation data.
+
+A threshold based on the mean reconstruction error plus three standard deviations is used as a conservative starting point.
+
+### 4. Sequence Generation
+
+The model processes data using **30-timestep sliding windows**.
+
+This allows the LSTM to learn temporal relationships between sensor measurements across multiple operating cycles.
 
 ---
 
-##  Technologies Used
+## Visualizations
 
-- **Python 3.8+**
-- **TensorFlow/Keras** - Deep learning
-- **Pandas/NumPy** - Data processing
-- **Scikit-learn** - Preprocessing & metrics
-- **Matplotlib/Seaborn** - Visualization
-- **Streamlit** - Interactive dashboard
+The project generates visualizations including:
 
----
-
-##  Dataset
-
-**NASA CMAPSS (Commercial Modular Aero-Propulsion System Simulation)**
-
-- 100 training engines (run-to-failure)
-- 100 test engines (stopped before failure)
-- 21 sensors (temperature, pressure, vibration, etc.)
-- FD001: Single operating condition, single fault mode
+| Visualization             | Description                                                         |
+| ------------------------- | ------------------------------------------------------------------- |
+| **Sensor Trends**         | Shows sensor behavior across engine operating cycles                |
+| **Reconstruction Error**  | Displays reconstruction error and detected anomalies                |
+| **Confusion Matrix**      | Shows classification performance                                    |
+| **Error Distribution**    | Compares reconstruction errors between normal and anomalous samples |
+| **Degradation Detection** | Helps visualize changes in engine behavior over time                |
 
 ---
 
-##  What I Learned
+## Technologies Used
 
--  Time-series anomaly detection with LSTMs
--  Unsupervised learning techniques
--  Preventing data leakage in ML pipelines
--  Evaluating imbalanced datasets (Precision/Recall)
--  End-to-end ML project deployment
--  Production-ready code structure
+* **Python 3.8+**
+* **TensorFlow / Keras** – Deep learning and LSTM Autoencoder
+* **Pandas** – Data processing
+* **NumPy** – Numerical computation
+* **Scikit-learn** – Preprocessing and evaluation
+* **Matplotlib / Seaborn** – Data visualization
+* **Streamlit** – Interactive dashboard
 
 ---
 
-##  Future Improvements
+## Dataset
 
-1. **Multi-condition training** (FD002-FD004 datasets)
-2. **Attention mechanisms** (identify contributing sensors)
-3. **Transfer learning** (pre-train on similar engines)
+### NASA CMAPSS
+
+The project uses the **NASA Commercial Modular Aero-Propulsion System Simulation (CMAPSS)** dataset.
+
+For the FD001 subset:
+
+* 100 training engine trajectories
+* 100 test engine trajectories
+* 21 sensor measurements
+* Single operating condition
+* Single fault mode
+
+The model uses a selected subset of sensor features for training.
+
+---
+
+## What I Learned
+
+Through this project, I gained practical experience in:
+
+* Time-series anomaly detection using LSTMs
+* Unsupervised learning
+* Autoencoder-based anomaly detection
+* Data preprocessing and feature selection
+* Preventing data leakage in ML pipelines
+* Evaluating models using Precision, Recall, and F1-Score
+* Working with imbalanced anomaly-detection datasets
+* Building an end-to-end machine learning pipeline
+* Deploying ML models through Streamlit
+
+---
+
+## Future Improvements
+
+1. **Multi-condition training** using FD002–FD004 datasets
+2. **Attention mechanisms** to identify important sensor contributions
+3. **Transfer learning** across different engine conditions
 4. **Remaining Useful Life (RUL) prediction**
-5. **Real-time monitoring** (Kafka + model serving)
+5. **Real-time monitoring** using streaming technologies such as Kafka
+6. **Model serving** through a dedicated API
+7. **Hyperparameter optimization** for improved anomaly detection performance
 
 ---
 
+## Author
+
+**Gaytri Tripathi**
+
+* GitHub: https://github.com/gaytritripathi121
+* Email: [gaytritripathi121@gmail.com](mailto:gaytritripathi121@gmail.com)
 
 ---
 
-##  Author
+## Acknowledgments
 
-Gaytri Tripathi 
-- Email: gaytritripathi121@gmail.com
-
----
-
-##  Acknowledgments
-
-- NASA Ames Prognostics Center for the CMAPSS dataset
+* NASA Ames Research Center for providing the CMAPSS dataset
 
 ---
 
+## Keywords
 
----
+**Predictive Maintenance, LSTM, Autoencoder, Anomaly Detection, Deep Learning, Time Series, TensorFlow, Keras, Turbofan, NASA CMAPSS, Machine Learning, Python**
 
-**Keywords:** Predictive Maintenance, LSTM, Autoencoder, Anomaly Detection, Deep Learning, Time Series, TensorFlow, Turbofan, NASA CMAPSS, Machine Learning, Python
+
+
