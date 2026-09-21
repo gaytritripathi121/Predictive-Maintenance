@@ -199,7 +199,7 @@ The project generates comprehensive visualizations:
 
 ##  Author
 
-**Your Name**
+Gaytri Tripathi 
 - Email: gaytritripathi121@gmail.com
 
 ---
